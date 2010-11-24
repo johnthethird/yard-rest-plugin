@@ -3,20 +3,20 @@ include Helpers::FilterHelper
 
 def init
   options[:objects] = objects = run_verifier(options[:objects])
-  options[:files] = ([options[:readme]] + options[:files]).compact.map { |t| t.to_s }
+  options[:files] = ([options[:readme]] + options[:files]).compact.map {|t| t.to_s }
   options[:readme] = options[:files].first
   options[:title] ||= "Documentation by YARD #{YARD::VERSION}"
-
+  
   generate_assets
   serialize('_index.html')
-  options[:files].each_with_index do |file, i|
-    serialize_file(file, i == 0 ? options[:title] : nil)
+  options[:files].each_with_index do |file, i| 
+    serialize_file(file, i == 0 ? options[:title] : nil) 
   end
 
   options.delete(:objects)
   options.delete(:files)
-
-  objects.each do |object|
+  
+  objects.each do |object| 
     begin
       serialize(object)
     rescue => e
@@ -61,24 +61,35 @@ def asset(path, content)
 end
 
 def generate_assets
-  %w(js/jquery.js js/app.js js/full_list.js
-      css/style.css css/full_list.css css/common.css).each do |file|
+  %w( js/jquery.js js/app.js js/full_list.js 
+      css/style.css css/full_list.css css/common.css ).each do |file|
     asset(file, file(file, true))
   end
-
+  
   @object = Registry.root
   generate_resource_list
   generate_topic_list
   generate_file_list
+  generate_method_list
+end
+
+def generate_method_list
+  @items = prune_method_listing(Registry.all(:method), false)
+  @items = @items.reject {|m| m.name.to_s =~ /=$/ && m.is_attribute? }
+  @items = @items.sort_by {|m| m.name.to_s }
+  @list_title = "Method List"
+  @list_type = "methods"
+  asset('method_list.html', erb(:full_list))
 end
 
 def generate_topic_list
-  topic_objects = index_objects(options[:objects]).reject { |o| o.root? }
+  topic_objects = options[:objects].reject {|o| o.root? || !is_class?(o) || o.tags('url').empty? || o.tags('topic').empty? }
   @topics = {}
-
+  
   topic_objects.each do |object|
     object.tags('topic').each { |topic| (@topics[topic.text] ||= []) << object }
   end
+
 
   @list_title = "Topic List"
   @list_type = "topic"
@@ -86,7 +97,7 @@ def generate_topic_list
 end
 
 def generate_resource_list
-  @items = index_objects(options[:objects])
+  @items = options[:objects]
   @list_title = "Resource List"
   @list_type = "resource"
   asset('resource_list.html', erb(:full_list))
